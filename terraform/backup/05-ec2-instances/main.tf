@@ -1,5 +1,5 @@
 provider "aws" {
-  region  = "us-east-1"
+  region = "us-east-1"
   //version = "~> 2.46" (No longer necessary)
 }
 
@@ -59,7 +59,7 @@ resource "aws_instance" "http_server" {
     inline = [
       "sudo yum install httpd -y",
       "sudo service httpd start",
-      "echo Welcome to in28minutes - Virtual Server is at ${self.public_dns} | sudo tee /var/www/html/index.html"
+      "echo Welcome to AWS Cloud - SUNDAR_DEVOPS - Virtual Server is at ${self.public_dns} | sudo tee /var/www/html/index.html"
     ]
   }
 }

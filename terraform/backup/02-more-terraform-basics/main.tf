@@ -8,7 +8,7 @@ provider "aws" {
   //version = "~> 2.46" (No longer necessary)
 }
 
-resource "aws_iam_user" "my_iam_users" {
-  count = 1
+resource "aws_iam_user" "devops_usr_001" {
+  count = 2
   name  = "${var.iam_user_name_prefix}_${count.index}"
 }

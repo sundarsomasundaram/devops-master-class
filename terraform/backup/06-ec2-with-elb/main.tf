@@ -1,103 +1,89 @@
 provider "aws" {
-  region  = "us-east-1"
-  //version = "~> 2.46"
+  region = "us-east-2"
+  //version = "~> 2.46" (No longer necessary)
 }
 
-resource "aws_default_vpc" "default" {
+resource "aws_vpc" "main" {
+  cidr_block = "192.168.0.0/16"  
+  enable_dns_support = "1"
+  enable_dns_hostnames = "1"
+ tags = {
+      Name = "myfirstvpc"      # Name of your vpc
+          }
 
 }
 
-resource "aws_security_group" "http_server_sg" {
-  name = "http_server_sg"
-  //vpc_id = "vpc-c49ff1be"
-  vpc_id = aws_default_vpc.default.id
+resource "aws_subnet" "first" {
+  availability_zone = "us-west-2a"
+  cidr_block = "192.168.1.0/24"
+  map_public_ip_on_launch = "1"
+  vpc_id = "${aws_vpc.main.id}"  #from the vpc resource aws_vpc main
+  tags = {
+      Name = "myfirstsubnet"
+          }
+}
 
+resource "aws_instance" "firstec2" {
+  ami = "ami-0ba60995c1589da9d"
+  instance_type = "t2.micro"
+  key_name = " "    #This can be downloaded from your AWS Account 
+  subnet_id = "${aws_subnet.first.id}"    # from the subnet resource aws_subnet first
+  tags = {
+      Name = "knode"
+          }
+  user_data = file("./install.sh")
+}
+
+
+resource "aws_internet_gateway" "internet" {
+  vpc_id = "${aws_vpc.main.id}"
+  tags = {
+      Name = "myinternetgateway"
+          }
+}
+
+resource "aws_route" "internet" {
+  route_table_id            = "${aws_vpc.main.default_route_table_id}"
+  destination_cidr_block    = "0.0.0.0/0"
+  gateway_id = "${aws_internet_gateway.internet.id}"
+}
+
+resource "aws_route_table_association" "a" {
+  subnet_id      = "${aws_subnet.first.id}"
+  route_table_id = "${aws_vpc.main.default_route_table_id}"
+}
+resource "aws_default_security_group" "default_myfirst" {
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = -1
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  vpc_id = "${aws_vpc.main.id}"
   tags = {
-    name = "http_server_sg"
-  }
+      Name = "myfirstsecuritygroup"
+          }
 }
-
-resource "aws_security_group" "elb_sg" {
-  name   = "elb_sg"
-  vpc_id = aws_default_vpc.default.id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = -1
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-}
-
-resource "aws_elb" "elb" {
-  name            = "elb"
-  subnets         = data.aws_subnet_ids.default_subnets.ids
-  security_groups = [aws_security_group.elb_sg.id]
-  instances       = values(aws_instance.http_servers).*.id
-
-  listener {
-    instance_port     = 80
-    instance_protocol = "http"
-    lb_port           = 80
-    lb_protocol       = "http"
-  }
-}
-
-resource "aws_instance" "http_servers" {
-  #ami                   = "ami-062f7200baf2fa504"
-  ami                    = data.aws_ami.aws_linux_2_latest.id
-  key_name               = "default-ec2"
-  instance_type          = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.http_server_sg.id]
-
-  for_each  = data.aws_subnet_ids.default_subnets.ids
-  subnet_id = each.value
-
+resource "aws_network_interface" "first" {
+  subnet_id = "${aws_subnet.first.id}"
   tags = {
-    name : "http_servers_${each.value}"
-  }
-
-  connection {
-    type        = "ssh"
-    host        = self.public_ip
-    user        = "ec2-user"
-    private_key = file(var.aws_key_pair)
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo yum install httpd -y",
-      "sudo service httpd start",
-      "echo Welcome to in28minutes - Virtual Server is at ${self.public_dns} | sudo tee /var/www/html/index.html"
-    ]
-  }
+      Name = "mynetworkinterface"
+          }
 }
+resource "aws_network_interface_attachment" "connect" {
+  instance_id          = "${aws_instance.firstec2.id}"
+  network_interface_id = "${aws_network_interface.first.id}"
+  device_index         = 1
+}
+
+output "IPs" {
+  value = "kmaster -  ${aws_instance.firstec2.public_ip}"
+}
+
+

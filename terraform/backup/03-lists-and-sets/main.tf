@@ -1,6 +1,6 @@
 variable "names" {
-  default = ["ravs", "tom", "jane"]
-  #default = ["ranga", "tom", "jane"]
+  #default = ["ravs", "tom", "jane"]
+  default = ["ranga-01", "tom", "jane","sundar"]
 }
 
 provider "aws" {
